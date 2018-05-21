@@ -11,14 +11,20 @@ import checkdmarc
 import re
 import json
 from pygments import highlight, lexers, formatters
+from pygments.formatters import Terminal256Formatter
+from pygments.styles import get_style_by_name
+from pygments.styles import STYLE_MAP
 
 
-EMAIL_ACCOUNT = "asdf@domain.com"
+EMAIL_ACCOUNT = "asdf@gmail.com"
 
 # Use 'INBOX' to read inbox.  Note that whatever folder is specified, 
 # after successfully running this script all emails in that folder 
 # will be marked as read.
 EMAIL_FOLDER = "INBOX"
+
+def percentage(part, whole):
+  return 100 * float(part)/float(whole)
 
 
 def process_mailbox(M):
@@ -36,6 +42,7 @@ def process_mailbox(M):
       },
       'dkim': {
         'count': 0,
+        'pass': 0,
         'fail': 0,
         'SenderAlignmentFailure': 0,
       },
@@ -108,6 +115,8 @@ def process_mailbox(M):
             if str("dkim") in arcAuthResults:
               report['dkim']['count'] += 1
               #dkimCount += 1
+              if str("dkim=pass") in arcAuthResults:
+                report['dkim']['pass'] += 1
               if str("dkim=pass") not in arcAuthResults:
                 report['dkim']['fail'] += 1
                 #dkimFailCount += 1
@@ -140,16 +149,40 @@ def process_mailbox(M):
               report['dmarc']['appliedPolicy']['none'] += 1 
 
     #print(json.dumps(report,indent=4))
-    formatted_json = json.dumps(report, indent=4)
 
-    colorful_json = highlight(formatted_json, lexers.JsonLexer(), formatters.TerminalFormatter())
-    print(colorful_json)
+    print('Total Domains:       %s ' % (report['totalDomains']))
+    print('Total Using SPF:     %s   %.2f%% of totalDomains are using SPF' % (report['spf']['count'],percentage(report['spf']['count'],report['totalDomains']) ))
+    print('Total SPF PASS:      %s   %.2f%%' % (report['spf']['pass'],percentage(report['spf']['pass'],report['totalDomains']) ))
+    print('Total SPF not PASS:  %s   %.2f%%' % (report['spf']['notPass'],percentage(report['spf']['notPass'],report['totalDomains']) ))
+    print("")
+    print('Total Using DKIM:    %s   %.2f%% of totalDomains are using DKIM' % (report['dkim']['count'],percentage(report['dkim']['count'],report['totalDomains']) ))
+    print('Total DKIM FAIL:     %s   %.2f%%' % (report['dkim']['fail'],percentage(report['dkim']['fail'],report['dkim']['count']) ))
+    print('Alignment Fail?:     %s   %.2f%%' % (report['dkim']['SenderAlignmentFailure'],percentage(report['dkim']['SenderAlignmentFailure'],report['dkim']['count']) ))
+    print("")
+    print('Total Using DMARC:   %s   %.2f%% of totalDomains are using DMARC' % (report['dmarc']['count'],percentage(report['dmarc']['count'],report['totalDomains']) ))
+    print('Total DMARC FAIL:    %s   %.2f%%' % (report['dkim']['fail'],percentage(report['dkim']['fail'],report['dmarc']['count']) ))
+    print('Total DMARC PASS:    %s   %.2f%%' % (report['dkim']['pass'],percentage(report['dkim']['pass'],report['dmarc']['count']) ))
+    print("")
+    print('DMARC Policy None:               %s   %.2f%%' % (report['dmarc']['policy']['none'],percentage(report['dmarc']['policy']['none'],report['dmarc']['count']) ))
+    print('DMARC Policy Quarantine:         %s   %.2f%%' % (report['dmarc']['policy']['quarantine'],percentage(report['dmarc']['policy']['quarantine'],report['dmarc']['count']) ))
+    print('DMARC Policy Reject:             %s   %.2f%%' % (report['dmarc']['policy']['reject'],percentage(report['dmarc']['policy']['reject'],report['dmarc']['count']) ))
+    
+    print("")
+    print('DMARC Result None:               %s   %.2f%%' % (report['dmarc']['appliedPolicy']['none'],percentage(report['dmarc']['appliedPolicy']['none'],report['dmarc']['count']) ))
+    print('DMARC Result Quarantine:         %s   %.2f%%' % (report['dmarc']['appliedPolicy']['quarantine'],percentage(report['dmarc']['appliedPolicy']['quarantine'],report['dmarc']['count']) ))
+    print('DMARC Result Reject:             %s   %.2f%%' % (report['dmarc']['appliedPolicy']['reject'],percentage(report['dmarc']['appliedPolicy']['reject'],report['dmarc']['count']) ))
+    
+    #formatted_json = json.dumps(report, indent=4)
+
+
+    #colorful_json = highlight(formatted_json, lexers.JsonLexer(), Terminal256Formatter(style=get_style_by_name('colorful')))
+    #print(colorful_json)
 
 
 M = imaplib.IMAP4_SSL('imap.gmail.com')
 
 try:
-    rv, data = M.login(EMAIL_ACCOUNT, getpass.getpass())
+    rv, data = M.login(EMAIL_ACCOUNT,  getpass.getpass())
 except imaplib.IMAP4.error:
     print ("LOGIN FAILED!!! ")
     sys.exit(1)
