@@ -24,8 +24,7 @@ def percentage(part, whole):
 
 def process_mailbox(M):
     """
-    Do something with emails messages in the folder.  
-    For the sake of this example, print some headers.
+    Parse Emails headers for SPF,DKIM and DMARC results
     """
 
     report = {
