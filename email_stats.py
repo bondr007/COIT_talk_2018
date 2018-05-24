@@ -116,9 +116,7 @@ def process_mailbox(M):
         if 'ARC-Authentication-Results' in msg:
           arc = email.header.make_header(email.header.decode_header(msg['ARC-Authentication-Results']))
           arcAuthResults = str(arc)
-          print(arcAuthResults)
-          print()
-          print()
+          
           if str("dmarc") in arcAuthResults:
             report['dmarc']['count'] += 1
             if str("dmarc=pass") in arcAuthResults:
